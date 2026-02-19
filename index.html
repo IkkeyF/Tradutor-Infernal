@@ -1,308 +1,76 @@
-<!doctype html>
-<html lang="pt-BR">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Tradutor Infernal</title>
-  <style>
-    :root{
-      --bg:#090606;
-      --panel:#120a0a;
-      --text:#f3e9e9;
-      --muted:#bdaaaa;
-      --line:#2a1414;
-      --glow: rgba(255,70,70,.22);
-      --accent:#ff4a4a;
-    }
-    *{box-sizing:border-box}
-    body{
-      margin:0;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
-      background:
-        radial-gradient(900px 500px at 20% 10%, var(--glow), transparent 60%),
-        radial-gradient(700px 400px at 80% 30%, rgba(255,120,0,.12), transparent 55%),
-        linear-gradient(180deg, #050303, var(--bg));
-      color:var(--text);
-      min-height:100vh;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:28px 16px;
-    }
-    .wrap{
-      width:min(980px, 100%);
-      display:grid;
-      gap:16px;
-    }
-    .card{
-      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
-      border:1px solid var(--line);
-      border-radius:18px;
-      padding:18px;
-      box-shadow: 0 10px 40px rgba(0,0,0,.35);
-    }
-    .head{
-      display:flex;
-      flex-wrap:wrap;
-      gap:10px;
-      align-items:flex-end;
-      justify-content:space-between;
-    }
-    h1{
-      margin:0;
-      font-size:22px;
-      letter-spacing:.4px;
-    }
-    .sub{
-      margin:6px 0 0;
-      color:var(--muted);
-      font-size:13px;
-      line-height:1.35;
-      max-width:68ch;
-    }
-    .pill{
-      font-size:12px;
-      color:var(--muted);
-      border:1px solid var(--line);
-      padding:7px 10px;
-      border-radius:999px;
-      background: rgba(0,0,0,.18);
-      display:flex;
-      gap:8px;
-      align-items:center;
-    }
-    .dot{
-      width:8px;height:8px;border-radius:50%;
-      background: var(--accent);
-      box-shadow: 0 0 12px rgba(255,74,74,.55);
-    }
+<script>
+  // ======= CIFRA (A-Z) =======
+  const mapa = {
+    a:"r", b:"k", c:"z", d:"q", e:"t", f:"y",
+    g:"h", h:"f", i:"p", j:"l", k:"j", l:"v",
+    m:"s", n:"d", o:"x", p:"g", q:"b", r:"n",
+    s:"o", t:"m", u:"c", v:"i", w:"u", x:"e",
+    y:"w", z:"a"
+  };
+  const inv = Object.fromEntries(Object.entries(mapa).map(([k,v]) => [v,k]));
 
-    .grid{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap:14px;
+  let direction = "H2I"; // H2I ou I2H
+
+  const inputEl  = document.getElementById("input");
+  const outputEl = document.getElementById("output");
+  const modeLabel = document.getElementById("modeLabel");
+  const toggleMode = document.getElementById("toggleMode");
+  const copyOut = document.getElementById("copyOut");
+  const countInfo = document.getElementById("countInfo");
+
+  function translate(text){
+    const src = (text ?? "").toLowerCase();
+    const table = (direction === "H2I") ? mapa : inv;
+
+    let out = "";
+    for (let i=0; i<src.length; i++){
+      const ch = src[i];
+      out += (table[ch] ?? ch);
     }
-    @media (max-width: 860px){
-      .grid{grid-template-columns: 1fr;}
+    return out;
+  }
+
+  function render(){
+    if(!inputEl || !outputEl) return;
+    const t = inputEl.value || "";
+    outputEl.textContent = translate(t);
+    if(countInfo) countInfo.textContent = `${t.length} chars`;
+  }
+
+  function setMode(){
+    direction = (direction === "H2I") ? "I2H" : "H2I";
+    if(modeLabel){
+      modeLabel.textContent = (direction === "H2I") ? "Humano → Infernal" : "Infernal → Humano";
     }
-
-    label{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      color:var(--muted);
-      font-size:12px;
-      margin:0 0 8px;
-    }
-    textarea{
-      width:100%;
-      min-height:180px;
-      resize:vertical;
-      padding:12px 12px;
-      border-radius:14px;
-      border:1px solid var(--line);
-      background: rgba(0,0,0,.28);
-      color:var(--text);
-      outline:none;
-      line-height:1.45;
-      font-size:14px;
-    }
-    textarea:focus{
-      border-color: rgba(255,74,74,.55);
-      box-shadow: 0 0 0 4px rgba(255,74,74,.10);
-    }
-    pre{
-      margin:0;
-      min-height:180px;
-      padding:12px;
-      border-radius:14px;
-      border:1px solid var(--line);
-      background: rgba(0,0,0,.22);
-      white-space:pre-wrap;
-      word-break:break-word;
-      font-size:14px;
-      line-height:1.45;
-    }
-    .actions{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      margin-top:12px;
-      align-items:center;
-      justify-content:space-between;
-    }
-    .btns{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-    }
-    button{
-      border:1px solid var(--line);
-      background: rgba(0,0,0,.18);
-      color:var(--text);
-      padding:9px 12px;
-      border-radius:12px;
-      cursor:pointer;
-      font-size:13px;
-      transition: transform .05s ease, border-color .15s ease, background .15s ease;
-    }
-    button:hover{
-      border-color: rgba(255,74,74,.55);
-      background: rgba(255,74,74,.08);
-    }
-    button:active{ transform: translateY(1px); }
-    .hint{
-      color:var(--muted);
-      font-size:12px;
-    }
-    .kbd{
-      border:1px solid var(--line);
-      border-bottom-color: rgba(255,255,255,.10);
-      padding:1px 7px;
-      border-radius:8px;
-      font-size:12px;
-      color:var(--muted);
-      background: rgba(0,0,0,.22);
-    }
-    .foot{
-      color:var(--muted);
-      font-size:12px;
-      line-height:1.4;
-    }
-  </style>
-</head>
-
-<body>
-  <main class="wrap">
-
-    <!-- ====== TEXTOS QUE VOCÊ EDITA FÁCIL ====== -->
-    <section class="card">
-      <div class="head">
-        <div>
-          <h1>Tradutor Infernal</h1>
-          <p class="sub">
-            Digite uma frase e veja a tradução em tempo real.
-            Use <span class="kbd">TAB</span> para alternar o sentido.
-          </p>
-        </div>
-        <div class="pill"><span class="dot"></span><span id="modeLabel">Humano → Infernal</span></div>
-      </div>
-    </section>
-
-    <section class="card">
-      <div class="grid">
-
-        <div>
-          <label for="input">
-            Entrada
-            <span class="hint">tempo real • <span id="countInfo">0 chars</span></span>
-          </label>
-          <textarea id="input" placeholder="Digite aqui..."></textarea>
-        </div>
-
-        <div>
-          <label>
-            Saída
-            <span class="hint">copie e cole onde quiser</span>
-          </label>
-          <pre id="output"></pre>
-        </div>
-
-      </div>
-
-      <div class="actions">
-        <div class="btns">
-          <button id="toggleMode" type="button">Alternar modo</button>
-          <button id="copyOut" type="button">Copiar saída</button>
-        </div>
-        <div class="hint">Atalho: <span class="kbd">TAB</span> alterna Humano ↔ Infernal</div>
-      </div>
-    </section>
-
-    <section class="card">
-      <div class="foot">
-        <strong>Observação:</strong> este tradutor é uma cifra simples (substituição letra a letra).
-        Pontuação, espaços e números são preservados.
-      </div>
-    </section>
-
-  </main>
-
-  <script>
-    // ======= CIFRA (A-Z) =======
-    const mapa = {
-      a:"r", b:"k", c:"z", d:"q", e:"t", f:"y",
-      g:"h", h:"f", i:"p", j:"l", k:"j", l:"v",
-      m:"s", n:"d", o:"x", p:"g", q:"b", r:"n",
-      s:"o", t:"m", u:"c", v:"i", w:"u", x:"e",
-      y:"w", z:"a"
-    };
-    const inv = Object.fromEntries(Object.entries(mapa).map(([k,v]) => [v,k]));
-
-    let direction = "H2I"; // H2I ou I2H
-
-    const inputEl  = document.getElementById("input");
-    const outputEl = document.getElementById("output");
-    const modeLabel = document.getElementById("modeLabel");
-    const toggleMode = document.getElementById("toggleMode");
-    const copyOut = document.getElementById("copyOut");
-    const countInfo = document.getElementById("countInfo");
-
-    function translate(text){
-      const src = (text ?? "").toLowerCase();
-      const table = (direction === "H2I") ? mapa : inv;
-
-      let out = "";
-      for (let i=0; i<src.length; i++){
-        const ch = src[i];
-        out += (table[ch] ?? ch);
-      }
-      return out;
-    }
-
-    function render(){
-      if(!inputEl || !outputEl) return;
-      const t = inputEl.value || "";
-      outputEl.textContent = translate(t);
-      if(countInfo) countInfo.textContent = `${t.length} chars`;
-    }
-
-    function setMode(){
-      direction = (direction === "H2I") ? "I2H" : "H2I";
-      if(modeLabel){
-        modeLabel.textContent = (direction === "H2I") ? "Humano → Infernal" : "Infernal → Humano";
-      }
-      render();
-    }
-
-    // Tradução em tempo real
-    ["input","keyup","paste","cut","change"].forEach(evt=>{
-      inputEl?.addEventListener(evt, render);
-    });
-
-    toggleMode?.addEventListener("click", setMode);
-
-    copyOut?.addEventListener("click", async () => {
-      try{
-        await navigator.clipboard.writeText(outputEl?.textContent || "");
-        copyOut.textContent = "Copiado!";
-        setTimeout(()=> copyOut.textContent = "Copiar saída", 900);
-      } catch(e){
-        copyOut.textContent = "Falhou :(";
-        setTimeout(()=> copyOut.textContent = "Copiar saída", 900);
-      }
-    });
-
-    // Atalho TAB alterna modo
-    window.addEventListener("keydown", (e) => {
-      if(e.key === "Tab"){
-        e.preventDefault();
-        setMode();
-      }
-    });
-
     render();
-  </script>
-</body>
-</html>
+  }
+
+  // Tradução em tempo real (várias fontes de evento pra não falhar)
+  ["input","keyup","paste","cut","change"].forEach(evt=>{
+    inputEl?.addEventListener(evt, render);
+  });
+
+  toggleMode?.addEventListener("click", setMode);
+
+  copyOut?.addEventListener("click", async () => {
+    try{
+      await navigator.clipboard.writeText(outputEl?.textContent || "");
+      copyOut.textContent = "Copiado!";
+      setTimeout(()=> copyOut.textContent = "Copiar saída", 900);
+    } catch(e){
+      copyOut.textContent = "Falhou :(";
+      setTimeout(()=> copyOut.textContent = "Copiar saída", 900);
+    }
+  });
+
+  // Atalho TAB alterna modo
+  window.addEventListener("keydown", (e) => {
+    if(e.key === "Tab"){
+      e.preventDefault();
+      setMode();
+    }
+  });
+
+  // Primeira renderização
+  render();
+</script>

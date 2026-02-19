@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Tradutor Infernal</title>
+  <style>
+    :root{
+      --bg0:#050000;
+      --bg1:#160000;
+      --red:#ff2e2e;
+      --red2:#ff5c5c;
+      --ink:#ffb3b3;
+      --panel:rgba(20,0,0,.65);
+      --stroke:rgba(255,46,46,.35);
+      --glow:rgba(255,46,46,.35);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      min-height:100vh;
+      color:var(--ink);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
+      background: radial-gradient(1200px 600px at 50% 25%, var(--bg1), var(--bg0) 60%, #000 100%);
+      overflow-x:hidden;
+    }
+
+    /* Partículas (canvas) */
+    canvas#embers{
+      position:fixed;
+      inset:0;
+      z-index:0;
+      pointer-events:none;
+      opacity:.55;
+    }
+
+    .wrap{
+      position:relative;
+      z-index:2;
+      max-width:980px;
+      margin:0 auto;
+      padding:42px 18px 60px;
+    }
+
+    .title{
+      text-align:center;
+      letter-spacing:5px;
+      color:var(--red2);
+      margin:0 0 10px;
+      text-shadow: 0 0 18px rgba(255,46,46,.55), 0 0 3px rgba(255,46,46,.75);
+      font-weight:800;
+    }
+    .sub{
+      text-align:center;
+      margin:0 0 26px;
+      opacity:.85;
+      font-size:14px;
+    }
+
+    .panel{
+      background:var(--panel);
+      border:1px solid var(--stroke);
+      border-radius:16px;
+      padding:16px;
+      box-shadow: 0 0 0 1px rgba(255,46,46,.08) inset, 0 14px 40px rgba(0,0,0,.55);
+      backdrop-filter: blur(6px);
+    }
+
+    .row{
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+      margin-bottom:12px;
+    }
+
+    .badge{
+      display:inline-flex;
+      gap:10px;
+      align-items:center;
+      padding:10px 12px;
+      border:1px solid rgba(255,46,46,.25);
+      border-radius:999px;
+      background:rgba(0,0,0,.35);
+    }
+
+    .mode{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+      justify-content:center;
+    }
+
+    .btn{
+      cursor:pointer;
+      border:1px solid rgba(255,46,46,.35);
+      background:rgba(0,0,0,.45);
+      color:var(--ink);
+      padding:10px 12px;
+      border-radius:12px;
+      transition: transform .06s ease, box-shadow .15s ease, border-color .15s ease;
+      user-select:none;
+    }
+    .btn:hover{
+      border-color:rgba(255,46,46,.55);
+      box-shadow:0 0 18px rgba(255,46,46,.18);
+    }
+    .btn:active{ transform: translateY(1px); }
+
+    .btn.primary{
+      color:#ffd0d0;
+      border-color:rgba(255,46,46,.6);
+      box-shadow:0 0 22px rgba(255,46,46,.22);
+    }
+
+    .hint{
+      font-size:12px;
+      opacity:.75;
+    }
+
+    textarea{
+      width:100%;
+      min-height:140px;
+      resize:vertical;
+      padding:14px 14px;
+      border-radius:14px;
+      border:1px solid rgba(255,46,46,.35);
+      background:rgba(0,0,0,.55);
+      color:var(--ink);
+      font-size:16px;
+      outline:none;
+      box-shadow: 0 0 0 1px rgba(255,46,46,.08) inset;
+    }
+    textarea:focus{
+      border-color:rgba(255,46,46,.65);
+      box-shadow: 0 0 0 1px rgba(255,46,46,.18) inset, 0 0 26px rgba(255,46,46,.12);
+    }
+
+    .out{
+      margin-top:14px;
+      padding:16px 14px;
+      border-radius:14px;
+      border:1px solid rgba(255,46,46,.35);
+      background:rgba(0,0,0,.45);
+      min-height:84px;
+      font-size:17px;
+      line-height:1.55;
+      white-space:pre-wrap;
+      word-wrap:break-word;
+      color:#ffd1d1;
+      text-shadow:
+        0 0 12px rgba(255,46,46,.28),
+        0 0 1px rgba(255,46,46,.35);
+      position:relative;
+      overflow:hidden;
+    }
+
+    .out::after{
+      content:"";
+      position:absolute;
+      inset:-40%;
+      background: radial-gradient(circle at 30% 30%, rgba(255,46,46,.14), transparent 45%),
+                  radial-gradient(circle at 70% 60%, rgba(255,46,46,.10), transparent 50%);
+      filter: blur(18px);
+      pointer-events:none;
+    }
+
+    .footer{
+      margin-top:14px;
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      justify-content:space-between;
+      align-items:center;
+      opacity:.85;
+    }
+
+    .kbd{
+      display:inline-block;
+      padding:2px 7px;
+      border:1px solid rgba(255,46,46,.35);
+      border-radius:8px;
+      background:rgba(0,0,0,.35);
+      font-size:12px;
+      margin:0 3px;
+    }
+
+    /* Runas flutuantes */
+    .rune{
+      position:fixed;
+      z-index:3;
+      pointer-events:none;
+      color:rgba(255,46,46,.75);
+      text-shadow:0 0 16px rgba(255,46,46,.55);
+      animation: floatUp 900ms ease-out forwards;
+      font-size:16px;
+      opacity:0;
+    }
+    @keyframes floatUp{
+      0%{ transform: translateY(8px) scale(.98); opacity:0; }
+      20%{ opacity:.95; }
+      100%{ transform: translateY(-58px) scale(1.06); opacity:0; }
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="embers"></canvas>
+
+<div class="wrap">
+  <h1 class="title">TRADUTOR INFERNAL</h1>
+  <p class="sub">Substituição A–Z (pontuação preservada). Alterna direção e traduz em tempo real.</p>
+
+  <div class="panel">
+    <div class="row">
+      <div class="badge" id="modeBadge">
+        <strong id="modeLabel">Humano → Infernal</strong>
+        <span class="hint">(atalho: <span class="kbd">Tab</span>)</span>
+      </div>
+
+      <div class="mode">
+        <button class="btn primary" id="toggleMode">Alternar direção</button>
+        <button class="btn" id="copyOut">Copiar saída</button>
+
+        <label class="btn" style="display:flex;gap:10px;align-items:center;">
+          <input id="soundToggle" type="checkbox" style="accent-color:#ff2e2e; transform: translateY(1px);" />
+          Som
+        </label>
+      </div>
+    </div>
+
+    <textarea id="input" placeholder="Digite aqui..."></textarea>
+    <div class="out" id="output" aria-live="polite"></div>
+
+    <div class="footer">
+      <div class="hint">
+        Dica: <span class="kbd">Ctrl</span>+<span class="kbd">L</span> limpa rápido, e <span class="kbd">Tab</span> alterna o modo.
+      </div>
+      <div class="hint" id="countInfo">0 chars</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ======= CIFRA (A-Z) =======
+  // humano -> infernal (minúsculo)
+  const mapa = {
+    a:"r", b:"k", c:"z", d:"q", e:"t", f:"y",
+    g:"h", h:"f", i:"p", j:"l", k:"j", l:"v",
+    m:"s", n:"d", o:"x", p:"g", q:"b", r:"n",
+    s:"o", t:"m", u:"c", v:"i", w:"u", x:"e",
+    y:"w", z:"a"
+  };
+  // inverso: infernal -> humano
+  const inv = Object.fromEntries(Object.entries(mapa).map(([k,v]) => [v,k]));
+
+  let direction = "H2I"; // H2I ou I2H
+
+  const $ = (id) => document.getElementById(id);
+  const input = $("input");
+  const output = $("output");
+  const modeLabel = $("modeLabel");
+  const toggleMode = $("toggleMode");
+  const copyOut = $("copyOut");
+  const countInfo = $("countInfo");
+  const soundToggle = $("soundToggle");
+
+  // ======= SOM (opcional) =======
+  let audioCtx = null;
+  function blip(){
+    if(!soundToggle.checked) return;
+    try{
+      if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = "triangle";
+      o.frequency.value = 220 + Math.random()*140;
+      g.gain.value = 0.03;
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start();
+      o.stop(audioCtx.currentTime + 0.04);
+    } catch(e){}
+  }
+
+  // ======= RUNAS FLUTUANTES =======
+  const runes = ["ᚠ","ᚢ","ᚦ","ᚨ","ᚱ","ᚲ","ᚷ","ᚹ","ᚺ","ᚾ","ᛁ","ᛃ","ᛇ","ᛈ","ᛉ","ᛋ","ᛏ","ᛒ","ᛖ","ᛗ","ᛚ","ᛜ"];
+  function spawnRune(){
+    const el = document.createElement("div");
+    el.className = "rune";
+    el.textContent = runes[(Math.random()*runes.length)|0];
+    const rect = input.getBoundingClientRect();
+    const x = rect.left + 20 + Math.random()*(Math.max(60, rect.width-40));
+    const y = rect.top + 20 + Math.random()*(Math.max(30, rect.height-40));
+    el.style.left = x + "px";
+    el.style.top  = y + "px";
+    el.style.fontSize = (14 + Math.random()*16) + "px";
+    document.body.appendChild(el);
+    // força reflow pra animar
+    el.getBoundingClientRect();
+    el.style.opacity = "1";
+    setTimeout(()=> el.remove(), 950);
+  }
+
+  // ======= TRADUÇÃO =======
+  function translate(text){
+    const src = text.toLowerCase();
+    const table = (direction === "H2I") ? mapa : inv;
+
+    let out = "";
+    for(const ch of src){
+      if(table[ch]) out += table[ch];
+      else out += ch; // mantém espaços/pontuação/números
+    }
+    return out;
+  }
+
+  function setMode(newMode){
+    direction = newMode;
+    modeLabel.textContent = (direction === "H2I") ? "Humano → Infernal" : "Infernal → Humano";
+    render();
+  }
+
+  function render(){
+    const t = input.value || "";
+    output.textContent = translate(t);
+    countInfo.textContent = `${t.length} chars`;
+  }
+
+  // Eventos
+  input.addEventListener("input", () => {
+    render();
+    spawnRune();
+    blip();
+  });
+
+  toggleMode.addEventListener("click", () => {
+    setMode(direction === "H2I" ? "I2H" : "H2I");
+  });
+
+  copyOut.addEventListener("click", async () => {
+    try{
+      await navigator.clipboard.writeText(output.textContent || "");
+      copyOut.textContent = "Copiado!";
+      setTimeout(()=> copyOut.textContent = "Copiar saída", 900);
+    } catch(e){
+      copyOut.textContent = "Falhou :(";
+      setTimeout(()=> copyOut.textContent = "Copiar saída", 900);
+    }
+  });
+
+  // Atalho Tab: alterna direção (sem perder foco no input)
+  window.addEventListener("keydown", (e) => {
+    if(e.key === "Tab"){
+      e.preventDefault();
+      setMode(direction === "H2I" ? "I2H" : "H2I");
+    }
+    if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "l"){
+      e.preventDefault();
+      input.value = "";
+      render();
+    }
+  });
+
+  // ======= PARTÍCULAS (brasas) =======
+  const canvas = document.getElementById("embers");
+  const ctx = canvas.getContext("2d");
+  let W=0,H=0;
+  function resize(){
+    W = canvas.width = window.innerWidth * devicePixelRatio;
+    H = canvas.height = window.innerHeight * devicePixelRatio;
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  const emberCount = 90;
+  const embers = Array.from({length: emberCount}, () => ({
+    x: Math.random()*W,
+    y: Math.random()*H,
+    r: (0.7 + Math.random()*2.2) * devicePixelRatio,
+    vx: (-0.15 + Math.random()*0.3) * devicePixelRatio,
+    vy: (-0.35 - Math.random()*0.9) * devicePixelRatio,
+    a: 0.15 + Math.random()*0.45
+  }));
+
+  function tick(){
+    ctx.clearRect(0,0,W,H);
+    for(const p of embers){
+      p.x += p.vx;
+      p.y += p.vy;
+      if(p.y < -20*devicePixelRatio){ p.y = H + Math.random()*60*devicePixelRatio; p.x = Math.random()*W; }
+      if(p.x < -20*devicePixelRatio) p.x = W + 20*devicePixelRatio;
+      if(p.x > W + 20*devicePixelRatio) p.x = -20*devicePixelRatio;
+
+      // brasa
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(255,46,46,${p.a})`;
+      ctx.fill();
+    }
+    requestAnimationFrame(tick);
+  }
+  tick();
+
+  // init
+  render();
+</script>
+
+</body>
+</html>
